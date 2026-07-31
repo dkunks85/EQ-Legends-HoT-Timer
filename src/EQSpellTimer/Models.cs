@@ -60,22 +60,31 @@ public static class DurationParser
 {
     public static int Parse(string? value, int fallback = 60)
     {
-        if (string.IsNullOrWhiteSpace(value)) return fallback;
+        if (string.IsNullOrWhiteSpace(value))
+            return fallback;
+
         value = value.Trim();
-        if (int.TryParse(value, out var seconds)) return Math.Max(1, seconds);
+
+        if (int.TryParse(value, out var seconds))
+            return Math.Max(1, seconds);
+
         var parts = value.Split(':');
-        if (parts.Length == 2 && int.TryParse(parts[0], out var minutes) && int.TryParse(parts[1], out seconds))
+
+        if (parts.Length == 2 &&
+            int.TryParse(parts[0], out var minutes) &&
+            int.TryParse(parts[1], out seconds))
+        {
             return Math.Max(1, minutes * 60 + seconds);
+        }
+
         return fallback;
     }
 }
 
-
 public enum LearningDecision
 {
     Ignore,
-    Self,
-    Target
+    Learn
 }
 
 public sealed class LearningCandidate
@@ -84,5 +93,5 @@ public sealed class LearningCandidate
     public required string Message { get; init; }
     public required string SuggestedPattern { get; init; }
     public required string SuggestedTarget { get; init; }
-    public bool CanUseTarget { get; init; }
+    public bool UsesTarget { get; init; }
 }
