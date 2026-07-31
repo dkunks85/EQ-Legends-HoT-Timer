@@ -13,27 +13,70 @@ public sealed class ConfigStore
     {
         try
         {
-            if (!File.Exists(SpellsPath)) return Defaults();
-            var spells = JsonSerializer.Deserialize<List<SpellDefinition>>(File.ReadAllText(SpellsPath), _json) ?? Defaults();
+            if (!File.Exists(SpellsPath))
+                return Defaults();
+
+            var spells =
+                JsonSerializer.Deserialize<List<SpellDefinition>>(
+                    File.ReadAllText(SpellsPath),
+                    _json)
+                ?? Defaults();
+
             foreach (var spell in spells)
             {
-                spell.Name = string.IsNullOrWhiteSpace(spell.Name) ? "New Spell" : spell.Name.Trim();
-                spell.MatchName = string.IsNullOrWhiteSpace(spell.MatchName) ? SpellNames.Base(spell.Name) : spell.MatchName.Trim();
-                spell.Category = string.IsNullOrWhiteSpace(spell.Category) ? "Buff" : spell.Category;
-                spell.DetectionMode = string.IsNullOrWhiteSpace(spell.DetectionMode) ? "Landing Message" : spell.DetectionMode;
-                spell.DurationSeconds = Math.Max(1, spell.DurationSeconds);
-                if (SpellNames.Base(spell.Name).Equals("Alacrity", StringComparison.OrdinalIgnoreCase))
+                spell.Name = string.IsNullOrWhiteSpace(spell.Name)
+                    ? "New Spell"
+                    : spell.Name.Trim();
+
+                spell.MatchName = string.IsNullOrWhiteSpace(spell.MatchName)
+                    ? SpellNames.Base(spell.Name)
+                    : spell.MatchName.Trim();
+
+                spell.Category = string.IsNullOrWhiteSpace(spell.Category)
+                    ? "Buff"
+                    : spell.Category;
+
+                spell.DetectionMode =
+                    string.IsNullOrWhiteSpace(spell.DetectionMode)
+                        ? "Landing Message"
+                        : spell.DetectionMode;
+
+                spell.DurationSeconds =
+                    Math.Max(1, spell.DurationSeconds);
+
+                if (SpellNames.Base(spell.Name).Equals(
+                        "Alacrity",
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     spell.Category = "Buff";
                     spell.DetectionMode = "Landing Message";
                     spell.MatchName = "Alacrity";
-                    if (string.IsNullOrWhiteSpace(spell.LandingPattern)) spell.LandingPattern = "You feel much faster.";
+
+                    // Upgrade old self-only configurations.
+                    if (string.IsNullOrWhiteSpace(spell.LandingPattern) ||
+                        spell.LandingPattern.Equals(
+                            "You feel much faster.",
+                            StringComparison.OrdinalIgnoreCase) ||
+                        spell.LandingPattern.Equals(
+                            "{target} feels much faster.",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        spell.LandingPattern =
+                            "You feel much faster. || {target} feels much faster.";
+                    }
                 }
             }
+
             SaveSpells(spells);
             return spells;
         }
-        catch { return Defaults(); }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Could not load spells: {ex}");
+
+            return Defaults();
+        }
     }
 
     public void SaveSpells(IEnumerable<SpellDefinition> spells) => File.WriteAllText(SpellsPath, JsonSerializer.Serialize(spells, _json));

@@ -30,7 +30,7 @@ public sealed class MainForm : Form
         _engine.TimersChanged += () => Ui(RenderTimers);
         _tailer.LineReceived += line => _engine.Process(line);
         _tailer.Error += ex => Ui(() => Log("Watcher error: "+ex.Message));
-        BuildUi(); BindGrid();
+        BuildUi(); BindGrid(); StyleSpellGrid();
         _uiTimer.Tick += (_,_) => { _engine.RemoveExpired(DateTime.Now); UpdateCountdowns(); };
         _uiTimer.Start();
         FormClosing += (_,_) => { _tailer.Dispose(); SaveAll(); };
@@ -52,6 +52,40 @@ public sealed class MainForm : Form
 
         var footer = new Panel { Dock=DockStyle.Bottom, Height=28, Padding=new Padding(10,5,10,0), BackColor=Color.FromArgb(19,22,27) };
         footer.Controls.Add(_status); Controls.Add(footer);
+    }
+
+    private void StyleSpellGrid()
+    {
+        _grid.EnableHeadersVisualStyles = false;
+
+        _grid.BackgroundColor = Color.FromArgb(31, 35, 42);
+        _grid.GridColor = Color.FromArgb(70, 75, 85);
+
+        _grid.DefaultCellStyle.BackColor = Color.FromArgb(31, 35, 42);
+        _grid.DefaultCellStyle.ForeColor = Color.White;
+        _grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 110, 190);
+        _grid.DefaultCellStyle.SelectionForeColor = Color.White;
+
+        _grid.AlternatingRowsDefaultCellStyle.BackColor =
+            Color.FromArgb(36, 40, 48);
+
+        _grid.ColumnHeadersDefaultCellStyle.BackColor =
+            Color.FromArgb(24, 27, 33);
+        _grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+        _grid.ColumnHeadersDefaultCellStyle.SelectionBackColor =
+            Color.FromArgb(24, 27, 33);
+
+        _grid.RowHeadersDefaultCellStyle.BackColor =
+            Color.FromArgb(24, 27, 33);
+        _grid.RowHeadersDefaultCellStyle.ForeColor = Color.White;
+
+        _grid.RowsDefaultCellStyle.BackColor =
+            Color.FromArgb(31, 35, 42);
+        _grid.RowsDefaultCellStyle.ForeColor = Color.White;
+
+        _grid.DefaultCellStyle.Font = new Font("Segoe UI", 10);
+        _grid.ColumnHeadersDefaultCellStyle.Font =
+            new Font("Segoe UI Semibold", 10);
     }
 
     private TabPage TimersTab()
