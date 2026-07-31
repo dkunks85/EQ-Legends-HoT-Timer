@@ -1,0 +1,33 @@
+name: Build Windows Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish
+        shell: pwsh
+        run: ./publish-win-x64.ps1
+      - name: Package
+        shell: pwsh
+        run: Compress-Archive -Path publish/win-x64/* -DestinationPath EQSpellTimer-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EQSpellTimer-win-x64
+          path: EQSpellTimer-win-x64.zip
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: EQSpellTimer-win-x64.zip

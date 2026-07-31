@@ -1,0 +1,9 @@
+.vs/
+.vscode/
+**/bin/
+**/obj/
+publish/
+*.user
+*.suo
+settings.json
+hot-learning.json
