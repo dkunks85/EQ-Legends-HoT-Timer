@@ -17,20 +17,38 @@ public sealed class MainForm : Form
     private readonly DataGridView _grid = new() { Dock=DockStyle.Fill, AutoGenerateColumns=false, AllowUserToAddRows=true, AllowUserToDeleteRows=true, BackgroundColor=Color.FromArgb(31,35,42), BorderStyle=BorderStyle.None };
     private readonly System.Windows.Forms.Timer _uiTimer = new() { Interval=100 };
     private readonly Label _status = new() { AutoSize=true, ForeColor=Color.Silver, Text="Not watching" };
+    private readonly CheckBox _learningMode = new() { Text="Learning Mode", AutoSize=true, ForeColor=Color.White, Checked=true, Padding=new Padding(8,4,0,0) };
+    private SplitContainer? _timerSplit;
 
     public MainForm()
     {
-        Text = "EQ Legends Spell Timer — C# Edition";
-        Width=940; Height=760; MinimumSize=new Size(760,600); StartPosition=FormStartPosition.CenterScreen;
+        Text = "EQ Legends Companion";
+        Width=940; Height=760; MinimumSize=new Size(640,500); StartPosition=FormStartPosition.CenterScreen;
         BackColor=Color.FromArgb(24,27,33); ForeColor=Color.White;
         _spells = new BindingList<SpellDefinition>(_store.LoadSpells());
         var settings = _store.LoadSettings(); _logPath.Text=settings.LogPath;
-        _engine = new TimerEngine(() => _spells.ToList(), CharacterName);
+        _learningMode.Checked = settings.LearningMode;
+        Width = Math.Max(MinimumSize.Width, settings.WindowWidth);
+        Height = Math.Max(MinimumSize.Height, settings.WindowHeight);
+        _engine = new TimerEngine(() => _spells.ToList(), CharacterName)
+        {
+            LearningEnabled = _learningMode.Checked
+        };
+        _engine.LearningRequested = PromptLearning;
         _engine.Activity += message => Ui(() => Log(message));
         _engine.TimersChanged += () => Ui(RenderTimers);
+        _engine.SpellDefinitionsChanged += () => Ui(() =>
+        {
+            _grid.Refresh();
+            SaveAll();
+        });
         _tailer.LineReceived += line => _engine.Process(line);
         _tailer.Error += ex => Ui(() => Log("Watcher error: "+ex.Message));
         BuildUi(); BindGrid(); StyleSpellGrid();
+        _learningMode.CheckedChanged += (_,_) => _engine.LearningEnabled = _learningMode.Checked;
+        _hotPanel.ClientSizeChanged += (_,_) => ResizeTimerCards();
+        _buffPanel.ClientSizeChanged += (_,_) => ResizeTimerCards();
+        Shown += (_,_) => ResizeTimerCards();
         _uiTimer.Tick += (_,_) => { _engine.RemoveExpired(DateTime.Now); UpdateCountdowns(); };
         _uiTimer.Start();
         FormClosing += (_,_) => { _tailer.Dispose(); SaveAll(); };
@@ -91,10 +109,10 @@ public sealed class MainForm : Form
     private TabPage TimersTab()
     {
         var page=Page("Timers");
-        var split=new SplitContainer { Dock=DockStyle.Fill, Orientation=Orientation.Horizontal, SplitterDistance=410, BackColor=BackColor };
-        split.Panel1.Controls.Add(_hotPanel); split.Panel1.Controls.Add(Section("Healing-over-time", DockStyle.Top));
-        split.Panel2.Controls.Add(_buffPanel); split.Panel2.Controls.Add(Section("Buffs", DockStyle.Top));
-        page.Controls.Add(split); return page;
+        _timerSplit=new SplitContainer { Dock=DockStyle.Fill, Orientation=Orientation.Horizontal, SplitterDistance=350, BackColor=BackColor, Panel1MinSize=130, Panel2MinSize=90 };
+        _timerSplit.Panel1.Controls.Add(_hotPanel); _timerSplit.Panel1.Controls.Add(Section("Healing-over-time", DockStyle.Top));
+        _timerSplit.Panel2.Controls.Add(_buffPanel); _timerSplit.Panel2.Controls.Add(Section("Buffs", DockStyle.Top));
+        page.Controls.Add(_timerSplit); return page;
     }
 
     private TabPage SetupTab()
@@ -103,7 +121,7 @@ public sealed class MainForm : Form
         var tools=new FlowLayoutPanel { Dock=DockStyle.Top, Height=42, Padding=new Padding(8), BackColor=Color.FromArgb(29,33,40) };
         var save=new Button { Text="Save Spells", AutoSize=true }; save.Click += (_,_) => SaveAll();
         var defaults=new Button { Text="Restore Defaults", AutoSize=true }; defaults.Click += (_,_) => { _spells.Clear(); foreach(var s in ConfigStore.Defaults()) _spells.Add(s); SaveAll(); };
-        tools.Controls.Add(save); tools.Controls.Add(defaults); page.Controls.Add(_grid); page.Controls.Add(tools); return page;
+        tools.Controls.Add(save); tools.Controls.Add(defaults); tools.Controls.Add(_learningMode); page.Controls.Add(_grid); page.Controls.Add(tools); return page;
     }
 
     private TabPage ActivityTab() { var p=Page("Activity Log"); p.Controls.Add(_activity); return p; }
@@ -153,18 +171,18 @@ public sealed class MainForm : Form
 
     private Control HotCard(ActiveTimer timer)
     {
-        var panel=new Panel { Width=850, Height=88, Margin=new Padding(8), BackColor=Color.FromArgb(38,43,52), Tag=timer };
-        var name=new Label { Text=$"{timer.Spell}  •  {timer.Target}"+(timer.Source!="You"?$"  •  cast by {timer.Source}":""), Left=14,Top=10,AutoSize=true,Font=new Font("Segoe UI Semibold",13),ForeColor=Color.White };
-        var time=new Label { Name="Time",Left=745,Top=8,Width=88,TextAlign=ContentAlignment.MiddleRight,Font=new Font("Segoe UI Semibold",16),ForeColor=Color.FromArgb(120,225,150) };
-        var bar=new ProgressBar { Name="Bar",Left=14,Top=52,Width=819,Height=19,Maximum=1000,Style=ProgressBarStyle.Continuous };
+        var panel=new Panel { Width=TimerCardWidth(_hotPanel), Height=88, Margin=new Padding(8), BackColor=Color.FromArgb(38,43,52), Tag=timer, Anchor=AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Top };
+        var name=new Label { Text=$"{timer.Spell}  •  {timer.Target}"+(timer.Source!=CharacterName()?$"  •  cast by {timer.Source}":""), Left=14,Top=10,AutoEllipsis=true,Width=Math.Max(180,panel.Width-130),Font=new Font("Segoe UI Semibold",13),ForeColor=Color.White,Anchor=AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Top };
+        var time=new Label { Name="Time",Left=panel.Width-102,Top=8,Width=88,TextAlign=ContentAlignment.MiddleRight,Font=new Font("Segoe UI Semibold",16),ForeColor=Color.FromArgb(120,225,150),Anchor=AnchorStyles.Top|AnchorStyles.Right };
+        var bar=new ProgressBar { Name="Bar",Left=14,Top=52,Width=Math.Max(100,panel.Width-28),Height=19,Maximum=1000,Style=ProgressBarStyle.Continuous,Anchor=AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Top };
         panel.Controls.AddRange([name,time,bar]); return panel;
     }
 
     private Control BuffRow(ActiveTimer timer)
     {
-        var panel=new Panel { Width=850,Height=43,Margin=new Padding(8,4,8,4),BackColor=Color.FromArgb(42,47,56),Tag=timer };
-        panel.Controls.Add(new Label { Text=$"{timer.Spell}  —  {timer.Target}",Left=12,Top=11,AutoSize=true,ForeColor=Color.White });
-        panel.Controls.Add(new Label { Name="Time",Left=755,Top=9,Width=78,TextAlign=ContentAlignment.MiddleRight,Font=new Font("Segoe UI Semibold",11),ForeColor=Color.FromArgb(130,195,255) }); return panel;
+        var panel=new Panel { Width=TimerCardWidth(_buffPanel),Height=43,Margin=new Padding(8,4,8,4),BackColor=Color.FromArgb(42,47,56),Tag=timer,Anchor=AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Top };
+        panel.Controls.Add(new Label { Text=$"{timer.Spell}  —  {timer.Target}",Left=12,Top=11,Width=Math.Max(160,panel.Width-110),AutoEllipsis=true,ForeColor=Color.White,Anchor=AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Top });
+        panel.Controls.Add(new Label { Name="Time",Left=panel.Width-90,Top=9,Width=78,TextAlign=ContentAlignment.MiddleRight,Font=new Font("Segoe UI Semibold",11),ForeColor=Color.FromArgb(130,195,255),Anchor=AnchorStyles.Top|AnchorStyles.Right }); return panel;
     }
 
     private void UpdateCountdowns()
@@ -180,12 +198,127 @@ public sealed class MainForm : Form
         }
     }
 
+
+    private int TimerCardWidth(FlowLayoutPanel panel)
+    {
+        var scrollbar = panel.VerticalScroll.Visible ? SystemInformation.VerticalScrollBarWidth : 0;
+        return Math.Max(280, panel.ClientSize.Width - panel.Padding.Horizontal - 18 - scrollbar);
+    }
+
+    private void ResizeTimerCards()
+    {
+        ResizeCardsIn(_hotPanel);
+        ResizeCardsIn(_buffPanel);
+    }
+
+    private void ResizeCardsIn(FlowLayoutPanel panel)
+    {
+        var width = TimerCardWidth(panel);
+        foreach (Control control in panel.Controls)
+        {
+            if (control.Tag is not ActiveTimer) continue;
+            control.Width = width;
+        }
+    }
+
+    private LearningDecision PromptLearning(LearningCandidate candidate)
+    {
+        if (InvokeRequired)
+        {
+            return (LearningDecision)Invoke(
+                new Func<LearningDecision>(() => PromptLearning(candidate)));
+        }
+
+        using var dialog = new Form
+        {
+            Text = "Learn spell landing message",
+            Width = 620,
+            Height = 310,
+            MinimumSize = new Size(520, 270),
+            StartPosition = FormStartPosition.CenterParent,
+            BackColor = Color.FromArgb(24,27,33),
+            ForeColor = Color.White,
+            ShowInTaskbar = false
+        };
+
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            RowCount = 4,
+            ColumnCount = 1,
+            Padding = new Padding(14)
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        layout.Controls.Add(new Label
+        {
+            Text = $"New landing message after {candidate.SpellName}",
+            AutoSize = true,
+            Font = new Font("Segoe UI Semibold", 12),
+            ForeColor = Color.Gold,
+            Margin = new Padding(0,0,0,8)
+        }, 0, 0);
+
+        layout.Controls.Add(new TextBox
+        {
+            Text = candidate.Message,
+            Multiline = true,
+            ReadOnly = true,
+            Dock = DockStyle.Fill,
+            BackColor = Color.FromArgb(35,39,47),
+            ForeColor = Color.White,
+            Font = new Font("Consolas", 10),
+            ScrollBars = ScrollBars.Vertical
+        }, 0, 1);
+
+        layout.Controls.Add(new Label
+        {
+            Text = candidate.CanUseTarget
+                ? $"Suggested target pattern: {candidate.SuggestedPattern}"
+                : "No target name was detected; this can be learned as a self message.",
+            AutoSize = true,
+            MaximumSize = new Size(560,0),
+            ForeColor = Color.Gainsboro,
+            Margin = new Padding(0,8,0,8)
+        }, 0, 2);
+
+        var buttons = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.RightToLeft,
+            AutoSize = true,
+            WrapContents = false
+        };
+
+        var ignore = new Button { Text = "Ignore", AutoSize = true, DialogResult = DialogResult.Cancel };
+        var self = new Button { Text = "Learn as self", AutoSize = true, DialogResult = DialogResult.No };
+        var target = new Button { Text = "Learn target pattern", AutoSize = true, DialogResult = DialogResult.Yes, Enabled = candidate.CanUseTarget };
+        buttons.Controls.Add(ignore);
+        buttons.Controls.Add(self);
+        buttons.Controls.Add(target);
+        layout.Controls.Add(buttons, 0, 3);
+
+        dialog.Controls.Add(layout);
+        dialog.AcceptButton = candidate.CanUseTarget ? target : self;
+        dialog.CancelButton = ignore;
+
+        return dialog.ShowDialog(this) switch
+        {
+            DialogResult.Yes => LearningDecision.Target,
+            DialogResult.No => LearningDecision.Self,
+            _ => LearningDecision.Ignore
+        };
+    }
+
     private string CharacterName()
     {
         var leaf=Path.GetFileNameWithoutExtension(_logPath.Text.Trim());
         var match=Regex.Match(leaf??"",@"^eqlog_([^_]+)_",RegexOptions.IgnoreCase); return match.Success?match.Groups[1].Value:"You";
     }
-    private void SaveAll() { _store.SaveSpells(_spells); _store.SaveSettings(new AppSettings { LogPath=_logPath.Text.Trim() }); Log("Settings saved"); }
+    private void SaveAll() { _store.SaveSpells(_spells); _store.SaveSettings(new AppSettings { LogPath=_logPath.Text.Trim(), LearningMode=_learningMode.Checked, WindowWidth=Width, WindowHeight=Height }); Log("Settings saved"); }
     private void Log(string message) { _activity.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}"); _activity.SelectionStart=_activity.TextLength; _activity.ScrollToCaret(); }
     private void Ui(Action action) { if(IsDisposed)return; if(InvokeRequired) BeginInvoke(action); else action(); }
 

@@ -93,7 +93,7 @@ public sealed class ConfigStore
     [
         Hot("Budding Heal"), Hot("Sprouting Heal"), Hot("Flowering Heal"), Hot("Blooming Heal"), Hot("Blossoming Heal"), Hot("Efflorescing Heal"),
         Hot("Snails Healing"), Hot("Tortoises Healing"), Hot("Slugs Healing"),
-        new() { Name="Alacrity", MatchName="Alacrity", Category="Buff", DurationSeconds=180, DetectionMode="Landing Message", LandingPattern="You feel much faster.", Enabled=true }
+        new() { Name="Alacrity", MatchName="Alacrity", Category="Buff", DurationSeconds=180, DetectionMode="Landing Message", LandingPattern="You feel much faster. || {target} feels much faster.", Enabled=true }
     ];
 
     private static SpellDefinition Hot(string name) => new() { Name=name, MatchName=name, Category="HoT", DurationSeconds=27, DetectionMode="Auto HoT Family", Enabled=true };

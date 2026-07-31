@@ -25,6 +25,9 @@ public sealed class SpellDefinition
 public sealed class AppSettings
 {
     public string LogPath { get; set; } = "";
+    public bool LearningMode { get; set; } = true;
+    public int WindowWidth { get; set; } = 940;
+    public int WindowHeight { get; set; } = 760;
 }
 
 public sealed class PendingCast
@@ -35,6 +38,7 @@ public sealed class PendingCast
     public required string Caster { get; init; }
     public required DateTime CastTime { get; init; }
     public DateTime Expires { get; init; }
+    public bool LearningPrompted { get; set; }
 }
 
 public sealed class ActiveTimer
@@ -64,4 +68,21 @@ public static class DurationParser
             return Math.Max(1, minutes * 60 + seconds);
         return fallback;
     }
+}
+
+
+public enum LearningDecision
+{
+    Ignore,
+    Self,
+    Target
+}
+
+public sealed class LearningCandidate
+{
+    public required string SpellName { get; init; }
+    public required string Message { get; init; }
+    public required string SuggestedPattern { get; init; }
+    public required string SuggestedTarget { get; init; }
+    public bool CanUseTarget { get; init; }
 }
