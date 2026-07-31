@@ -727,7 +727,7 @@ function Stop-Watching {
 # ---------------- GUI ----------------
 Load-Config
 $form=New-Object System.Windows.Forms.Form
-$form.Text="EverQuest Legends Spell Timer v$script:Version"
+$form.Text="EQL Spell Timer" v$script:Version"
 $form.Size=New-Object System.Drawing.Size(820,760); $form.MinimumSize=New-Object System.Drawing.Size(760,650)
 $form.StartPosition='CenterScreen'; $form.BackColor=[System.Drawing.Color]::FromArgb(27,31,38)
 $form.Font=New-Object System.Drawing.Font('Segoe UI',9)
