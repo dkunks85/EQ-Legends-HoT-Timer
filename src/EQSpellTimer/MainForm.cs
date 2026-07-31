@@ -354,63 +354,96 @@ public sealed class MainForm : Form
     private Control HotCard(ActiveTimer timer)
     {
         var width = TimerCardWidth(_hotPanel);
+        var familyColor = HotFamilyColor(timer.BaseName);
 
-        var panel=new Panel
+        var panel = new Panel
         {
-            Width=width,
-            MinimumSize=new Size(280,88),
-            Height=88,
-            Margin=new Padding(8),
-            BackColor=Color.FromArgb(38,43,52),
-            Tag=timer,
-            Visible=true
+            Width = width,
+            MinimumSize = new Size(280, 88),
+            Height = 88,
+            Margin = new Padding(8),
+            BackColor = Color.FromArgb(38, 43, 52),
+            Tag = timer,
+            Visible = true
         };
 
-        var name=new Label
+        var accent = new Panel
         {
-            Text=$"{timer.Spell}  •  {timer.Target}"+
-                 (timer.Source!=CharacterName()
-                    ?$"  •  cast by {timer.Source}"
-                    :""),
-            Left=14,
-            Top=10,
-            AutoEllipsis=true,
-            Width=Math.Max(180,panel.Width-130),
-            Height=28,
-            Font=new Font("Segoe UI Semibold",13),
-            ForeColor=Color.White,
-            Anchor=AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Top
+            Name = "Accent",
+            Left = 0,
+            Top = 0,
+            Width = 6,
+            Height = panel.Height,
+            BackColor = familyColor,
+            Anchor = AnchorStyles.Left |
+                     AnchorStyles.Top |
+                     AnchorStyles.Bottom
         };
 
-        var time=new Label
+        var name = new Label
         {
-            Name="Time",
-            Left=panel.Width-102,
-            Top=8,
-            Width=88,
-            Height=30,
-            TextAlign=ContentAlignment.MiddleRight,
-            Font=new Font("Segoe UI Semibold",16),
-            ForeColor=Color.FromArgb(120,225,150),
-            Anchor=AnchorStyles.Top|AnchorStyles.Right
+            Text =
+                $"{timer.Spell}  •  {timer.Target}" +
+                (timer.Source != CharacterName()
+                    ? $"  •  cast by {timer.Source}"
+                    : ""),
+            Left = 16,
+            Top = 10,
+            AutoEllipsis = true,
+            Width = Math.Max(180, panel.Width - 132),
+            Height = 28,
+            Font = new Font("Segoe UI Semibold", 13),
+            ForeColor = Color.White,
+            Anchor = AnchorStyles.Left |
+                     AnchorStyles.Right |
+                     AnchorStyles.Top
         };
 
-        var bar=new ProgressBar
+        var time = new Label
         {
-            Name="Bar",
-            Left=14,
-            Top=52,
-            Width=Math.Max(100,panel.Width-28),
-            Height=19,
-            Maximum=1000,
-            Value=1000,
-            Style=ProgressBarStyle.Continuous,
-            Anchor=AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Top
+            Name = "Time",
+            Left = panel.Width - 102,
+            Top = 8,
+            Width = 88,
+            Height = 30,
+            TextAlign = ContentAlignment.MiddleRight,
+            Font = new Font("Segoe UI Semibold", 16),
+            ForeColor = familyColor,
+            Anchor = AnchorStyles.Top |
+                     AnchorStyles.Right
         };
 
+        var barBack = new Panel
+        {
+            Name = "BarBack",
+            Left = 16,
+            Top = 52,
+            Width = Math.Max(100, panel.Width - 30),
+            Height = 19,
+            BackColor = Color.FromArgb(24, 27, 33),
+            Anchor = AnchorStyles.Left |
+                     AnchorStyles.Right |
+                     AnchorStyles.Top
+        };
+
+        var barFill = new Panel
+        {
+            Name = "BarFill",
+            Left = 0,
+            Top = 0,
+            Width = barBack.Width,
+            Height = barBack.Height,
+            BackColor = familyColor,
+            Anchor = AnchorStyles.Left |
+                     AnchorStyles.Top |
+                     AnchorStyles.Bottom
+        };
+
+        barBack.Controls.Add(barFill);
+        panel.Controls.Add(accent);
         panel.Controls.Add(name);
         panel.Controls.Add(time);
-        panel.Controls.Add(bar);
+        panel.Controls.Add(barBack);
 
         return panel;
     }
@@ -460,35 +493,157 @@ public sealed class MainForm : Form
 
     private void UpdateCountdowns()
     {
-        foreach(Control parent in _hotPanel.Controls.Cast<Control>()
+        foreach (Control parent in _hotPanel.Controls.Cast<Control>()
             .Concat(_buffPanel.Controls.Cast<Control>()))
         {
             if (parent.Tag is not ActiveTimer timer)
                 continue;
 
-            var time=parent.Controls.Find("Time",false).FirstOrDefault() as Label;
-            var bar=parent.Controls.Find("Bar",false).FirstOrDefault() as ProgressBar;
+            var remaining = Math.Max(
+                0,
+                (timer.End - DateTime.Now).TotalSeconds);
 
+            var time = parent.Controls
+                .Find("Time", false)
+                .FirstOrDefault() as Label;
 
-            var remaining=Math.Max(0,(timer.End-DateTime.Now).TotalSeconds);
-
-            if(time is not null)
+            if (time is not null)
             {
-                time.Text=timer.Category=="HoT"
-                    ?$"{remaining:0.0}s"
-                    :remaining>=60
-                        ?$"{(int)remaining/60}:{(int)remaining%60:00}"
-                        :$"{remaining:0}s";
+                time.Text = timer.Category.Equals(
+                        "HoT",
+                        StringComparison.OrdinalIgnoreCase)
+                    ? $"{remaining:0.0}s"
+                    : remaining >= 60
+                        ? $"{(int)remaining / 60}:{(int)remaining % 60:00}"
+                        : $"{remaining:0}s";
             }
 
-            if(bar is not null)
+            if (!timer.Category.Equals(
+                    "HoT",
+                    StringComparison.OrdinalIgnoreCase))
             {
-                bar.Value=Math.Clamp(
-                    (int)(1000*remaining/Math.Max(1,timer.Duration)),
+                continue;
+            }
+
+            var familyColor = HotFamilyColor(timer.BaseName);
+            var isNature = IsNatureHot(timer.BaseName);
+            var shouldPulse = isNature &&
+                              remaining > 0 &&
+                              remaining <= 5;
+
+            var displayColor = shouldPulse
+                ? NatureWarningPulse(familyColor)
+                : familyColor;
+
+            if (time is not null)
+                time.ForeColor = displayColor;
+
+            var accent = parent.Controls
+                .Find("Accent", false)
+                .FirstOrDefault() as Panel;
+
+            if (accent is not null)
+                accent.BackColor = displayColor;
+
+            var barBack = parent.Controls
+                .Find("BarBack", true)
+                .FirstOrDefault() as Panel;
+
+            var barFill = parent.Controls
+                .Find("BarFill", true)
+                .FirstOrDefault() as Panel;
+
+            if (barBack is not null && barFill is not null)
+            {
+                var fraction = Math.Clamp(
+                    remaining / Math.Max(1, timer.Duration),
                     0,
-                    1000);
+                    1);
+
+                barFill.Width = Math.Clamp(
+                    (int)Math.Round(barBack.ClientSize.Width * fraction),
+                    0,
+                    barBack.ClientSize.Width);
+
+                barFill.BackColor = displayColor;
             }
+
+            parent.BackColor = shouldPulse
+                ? BlendColor(
+                    Color.FromArgb(38, 43, 52),
+                    Color.FromArgb(105, 28, 28),
+                    WarningPulseAmount())
+                : Color.FromArgb(38, 43, 52);
         }
+    }
+
+    private static Color HotFamilyColor(string baseName)
+    {
+        var spell = SpellNames.Base(baseName);
+
+        if (IsDruidHot(spell))
+            return Color.FromArgb(76, 175, 80);
+
+        if (IsShamanHot(spell))
+            return Color.FromArgb(59, 130, 246);
+
+        if (EngineContext.IsClericHotName(spell))
+            return Color.FromArgb(250, 204, 21);
+
+        return Color.FromArgb(160, 170, 185);
+    }
+
+    private static bool IsNatureHot(string baseName)
+    {
+        var spell = SpellNames.Base(baseName);
+        return IsDruidHot(spell) || IsShamanHot(spell);
+    }
+
+    private static bool IsDruidHot(string spell)
+    {
+        return
+            spell.Equals("Budding Heal", StringComparison.OrdinalIgnoreCase) ||
+            spell.Equals("Sprouting Heal", StringComparison.OrdinalIgnoreCase) ||
+            spell.Equals("Flowering Heal", StringComparison.OrdinalIgnoreCase) ||
+            spell.Equals("Blooming Heal", StringComparison.OrdinalIgnoreCase) ||
+            spell.Equals("Blossoming Heal", StringComparison.OrdinalIgnoreCase) ||
+            spell.Equals("Efflorescing Heal", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsShamanHot(string spell)
+    {
+        return
+            spell.Equals("Snails Healing", StringComparison.OrdinalIgnoreCase) ||
+            spell.Equals("Tortoises Healing", StringComparison.OrdinalIgnoreCase) ||
+            spell.Equals("Slugs Healing", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Color NatureWarningPulse(Color normalColor)
+    {
+        return BlendColor(
+            normalColor,
+            Color.FromArgb(235, 65, 65),
+            WarningPulseAmount());
+    }
+
+    private static double WarningPulseAmount()
+    {
+        // Smooth two-second pulse: normal -> red -> normal.
+        var phase = DateTime.Now.TimeOfDay.TotalMilliseconds / 2000.0;
+        return (Math.Sin(phase * Math.PI * 2) + 1) / 2;
+    }
+
+    private static Color BlendColor(
+        Color from,
+        Color to,
+        double amount)
+    {
+        amount = Math.Clamp(amount, 0, 1);
+
+        return Color.FromArgb(
+            (int)Math.Round(from.R + (to.R - from.R) * amount),
+            (int)Math.Round(from.G + (to.G - from.G) * amount),
+            (int)Math.Round(from.B + (to.B - from.B) * amount));
     }
 
     private int TimerCardWidth(FlowLayoutPanel panel)

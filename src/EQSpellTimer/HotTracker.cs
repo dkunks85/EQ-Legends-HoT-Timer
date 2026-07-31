@@ -16,6 +16,7 @@ internal sealed partial class HotTracker
         return
             TryDruidTargetLanding(message) ||
             TryDruidSelfLanding(message) ||
+            TryShamanLanding(message) ||
             TryClericSelfEmbrace(message) ||
             TryClericImmediateHeal(message) ||
             TryTick(message) ||
@@ -102,6 +103,61 @@ internal sealed partial class HotTracker
                 message.Timestamp,
                 tickSynced: false);
         }
+
+        return true;
+    }
+
+    private bool TryShamanLanding(LogMessage message)
+    {
+        var match = ShamanLandingRegex().Match(message.Text);
+
+        if (!match.Success)
+            return false;
+
+        var spirit = match.Groups["spirit"].Value;
+        var expectedBaseName = spirit.ToLowerInvariant() switch
+        {
+            "snail" => "Snails Healing",
+            "tortoise" => "Tortoises Healing",
+            "slug" => "Slugs Healing",
+            _ => ""
+        };
+
+        if (string.IsNullOrWhiteSpace(expectedBaseName))
+            return false;
+
+        var target = _context.NormalizeTarget(
+            match.Groups["target"].Value,
+            "You");
+
+        // Match the newest visible Shaman cast of the correct family.
+        // This supports the local player, group members, players, and pets.
+        var pending = _context.TakeNewestPending(p =>
+            EngineContext.IsHot(p.Spell) &&
+            p.BaseName.Equals(
+                expectedBaseName,
+                StringComparison.OrdinalIgnoreCase) &&
+            message.Timestamp >= p.CastTime &&
+            message.Timestamp <= p.Expires);
+
+        if (pending is null)
+        {
+            _context.Say(
+                $"Detected {expectedBaseName} landing on {target}, " +
+                "but no matching pending Shaman cast was found.");
+
+            return true;
+        }
+
+        _context.Say(
+            $"Detected {pending.CastName} landing on {target} " +
+            $"from {_context.DisplayCaster(pending.Caster)}");
+
+        _context.StartHot(
+            pending,
+            target,
+            message.Timestamp,
+            tickSynced: false);
 
         return true;
     }
@@ -408,6 +464,12 @@ internal sealed partial class HotTracker
         @"^You feel a heal (?<stage>budding|sprouting|flowering|blooming|blossoming|efflorescing) within you\.?$",
         RegexOptions.IgnoreCase)]
     private static partial Regex DruidSelfLandingRegex();
+
+    [GeneratedRegex(
+        @"^(?<target>.+?) is healed by the spirit of the " +
+        @"(?<spirit>snail|tortoise|slug)\.?$",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex ShamanLandingRegex();
 
     [GeneratedRegex(
         @"^(?:(?<caster>You)|(?<caster>.+?)) healed (?<target>.+?) " +

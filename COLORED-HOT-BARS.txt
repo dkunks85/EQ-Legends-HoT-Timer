@@ -1,0 +1,15 @@
+EQ Legends Companion v1.5.2 — Colored HoT Bars
+
+HoT colors:
+- Druid: green
+- Shaman: blue
+- Cleric: gold
+
+Nature warning:
+- Druid and Shaman cards begin a smooth red pulse at 5.0 seconds.
+- The left accent, countdown, progress fill, and card background pulse.
+- Cleric Echo timers do not flash red.
+- Manual buffs remain neutral.
+
+The native WinForms ProgressBar was replaced with a custom colored fill panel
+so each HoT family can have a reliable color on all Windows themes.

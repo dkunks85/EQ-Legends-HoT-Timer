@@ -1,0 +1,21 @@
+EQ Legends Companion v1.5.3 — Shaman landing-message fix
+
+Added immediate Shaman HoT landing detection:
+
+    Gryff is healed by the spirit of the snail.
+    Gryff is healed by the spirit of the tortoise.
+    Gryff is healed by the spirit of the slug.
+
+Mappings:
+- spirit of the snail -> Snails Healing
+- spirit of the tortoise -> Tortoises Healing
+- spirit of the slug -> Slugs Healing
+
+Works for:
+- your casts
+- visible group-member casts
+- players
+- pets
+- ranked spell names such as Snails Healing V
+
+The timer starts from the landing message instead of waiting for a healing tick.
