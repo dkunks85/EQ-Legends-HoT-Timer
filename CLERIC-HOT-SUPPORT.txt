@@ -1,0 +1,25 @@
+EQ Legends Companion v1.5 — Cleric Echo HoTs
+
+Added automatic Cleric HoT support:
+- Echo of Health (level 8)
+- Echoing Light (level 14)
+- Renewing Echo (level 24)
+- Celestial Echo (level 34)
+- Sacred Echo (level 43)
+
+Confirmed log forms:
+- Self landing text:
+    You are embraced by a spirit of healing.
+- Immediate target-identifying heal:
+    You healed Cosmos for 3 (51) hit points by Echo of Health.
+- HoT tick:
+    You healed Cosmos over time for 9 (20) hit points by Echo of Health.
+- Fade:
+    The echo of healing fades away.
+
+Behavior:
+- The immediate heal identifies the target and starts the timer.
+- Over-time ticks use the existing synchronization logic.
+- The targetless fade ends the newest active Cleric Echo timer.
+- Observed duration is learned separately for exact ranked spell names.
+- Existing spells.json files are automatically upgraded with the Cleric family.

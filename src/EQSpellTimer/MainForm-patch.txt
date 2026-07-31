@@ -1,0 +1,47 @@
+Apply these two changes to your working MainForm.cs.
+
+1. In UpdateCountdowns(), immediately after:
+   if (parent.Tag is not ActiveTimer timer) continue;
+
+Add:
+
+    var time = parent.Controls
+        .Find("Time", false)
+        .FirstOrDefault() as Label;
+
+    var bar = parent.Controls
+        .Find("Bar", false)
+        .FirstOrDefault() as ProgressBar;
+
+    if (timer.IsIndefinite)
+    {
+        if (time is not null)
+            time.Text = "Learning…";
+
+        if (bar is not null)
+            bar.Value = 1000;
+
+        continue;
+    }
+
+Then remove/reuse the later duplicate declarations of `time` and `bar`.
+
+2. Replace PromptLearning() with a version that uses candidate.Kind:
+
+    var title = candidate.Kind == LearningKind.Fade
+        ? $"Learn fade message for {candidate.SpellName}?"
+        : $"Learn landing message for {candidate.SpellName}?";
+
+    var details =
+        $"The app will save:\r\n{candidate.SuggestedPattern}\r\n\r\n" +
+        $"Target: {candidate.SuggestedTarget}";
+
+    if (candidate.ObservedDurationSeconds is int seconds)
+    {
+        details +=
+            $"\r\nObserved duration: " +
+            $"{seconds / 60}:{seconds % 60:00}";
+    }
+
+Use `title` for the gold heading and `details` for the explanatory label.
+The Learn/Ignore buttons remain unchanged.

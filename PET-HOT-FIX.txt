@@ -1,0 +1,16 @@
+EQ Legends Companion v1.4.2 — Pet HoT target fix
+
+Fixes:
+- Normalizes EQ possessive punctuation:
+    Cosmos`s warder
+    Cosmos's warder
+  are treated as the same target.
+- Makes Druid seeded-message detection robust for player and pet targets.
+- Adds Activity Log diagnostics:
+    Detected <spell> landing on <target>
+  or
+    Detected seeded HoT landing ... but no pending cast was found.
+
+Open EQSpellTimer.sln, then:
+  Build > Clean Solution
+  Build > Rebuild Solution

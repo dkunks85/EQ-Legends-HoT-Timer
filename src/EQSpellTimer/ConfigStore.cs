@@ -34,6 +34,21 @@ public sealed class ConfigStore
             foreach (var spell in spells)
                 Normalize(spell);
 
+            // Add newly shipped automatic HoT families without wiping
+            // the user's existing spell configuration.
+            foreach (var defaultSpell in Defaults())
+            {
+                if (spells.Any(existing =>
+                        SpellNames.Base(existing.Name).Equals(
+                            SpellNames.Base(defaultSpell.Name),
+                            StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                spells.Add(defaultSpell);
+            }
+
             SaveSpells(spells);
             return spells;
         }
@@ -86,6 +101,13 @@ public sealed class ConfigStore
         Hot("Tortoises Healing"),
         Hot("Slugs Healing"),
 
+        // Cleric Echo HoT family.
+        Hot("Echo of Health", 8),
+        Hot("Echoing Light", 8),
+        Hot("Renewing Echo", 8),
+        Hot("Celestial Echo", 8),
+        Hot("Sacred Echo", 8),
+
         new SpellDefinition
         {
             Name = "Alacrity",
@@ -99,12 +121,14 @@ public sealed class ConfigStore
         }
     ];
 
-    private static SpellDefinition Hot(string name) => new()
+    private static SpellDefinition Hot(
+        string name,
+        int durationSeconds = 27) => new()
     {
         Name = name,
         MatchName = name,
         Category = "HoT",
-        DurationSeconds = 27,
+        DurationSeconds = durationSeconds,
         DetectionMode = "Auto HoT Family",
         Enabled = true
     };
@@ -128,6 +152,16 @@ public sealed class ConfigStore
             : spell.DetectionMode.Trim();
 
         spell.DurationSeconds = Math.Max(1, spell.DurationSeconds);
+
+        // Normal buffs now use only their configured timer.
+        // Retain the property for backward-compatible JSON loading,
+        // but clear old fade patterns.
+        if (!spell.Category.Equals(
+                "HoT",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            spell.FadePattern = "";
+        }
 
         if (SpellNames.Base(spell.Name).Equals(
                 "Alacrity",

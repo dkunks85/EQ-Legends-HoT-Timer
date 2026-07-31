@@ -11,58 +11,45 @@ internal sealed class BuffTracker
 
     public bool TryKnownLanding(LogMessage message)
     {
-        foreach (var spell in _context.Spells.Where(s =>
-                     s.Enabled &&
-                     !EngineContext.IsHot(s) &&
-                     s.DetectionMode.Equals(
-                         "Landing Message",
-                         StringComparison.OrdinalIgnoreCase) &&
-                     !string.IsNullOrWhiteSpace(s.LandingPattern)))
+        var pending = _context.PeekNewestPending(p =>
+            !EngineContext.IsHot(p.Spell) &&
+            p.Caster.Equals("You", StringComparison.OrdinalIgnoreCase) &&
+            message.Timestamp >= p.CastTime &&
+            message.Timestamp <= p.CastTime.AddSeconds(5) &&
+            p.Spell.DetectionMode.Equals(
+                "Landing Message",
+                StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(p.Spell.LandingPattern));
+
+        if (pending is null)
+            return false;
+
+        var patterns = PatternMatcher
+            .Split(pending.Spell.LandingPattern)
+            .OrderBy(pattern =>
+                pattern.Contains("{target}", StringComparison.OrdinalIgnoreCase)
+                    ? 1
+                    : 0);
+
+        foreach (var pattern in patterns)
         {
-            foreach (var pattern in PatternMatcher.Split(
-                         spell.LandingPattern))
-            {
-                var match = PatternMatcher.Match(
-                    pattern,
-                    message.Text);
+            var match = PatternMatcher.Match(pattern, message.Text);
 
-                if (!match.Success)
-                    continue;
+            if (!match.Success)
+                continue;
 
-                var pending = _context.TakeNewestPending(p =>
-                    !EngineContext.IsHot(p.Spell) &&
-                    p.Caster.Equals(
-                        "You",
-                        StringComparison.OrdinalIgnoreCase) &&
-                    (ReferenceEquals(p.Spell, spell) ||
-                     p.BaseName.Equals(
-                         SpellNames.Base(spell.Name),
-                         StringComparison.OrdinalIgnoreCase) ||
-                     p.BaseName.Equals(
-                         SpellNames.Base(spell.MatchName),
-                         StringComparison.OrdinalIgnoreCase)));
+            var target = match.Groups["target"].Success
+                ? _context.NormalizeTarget(
+                    match.Groups["target"].Value,
+                    pending.Caster)
+                : _context.CharacterName;
 
-                if (pending is null)
-                {
-                    _context.Say(
-                        $"Landing matched {spell.Name}, " +
-                        "but no pending self-cast was found.");
-                    return true;
-                }
-
-                var target = match.Groups["target"].Success
-                    ? _context.NormalizeTarget(
-                        match.Groups["target"].Value,
-                        pending.Caster)
-                    : _context.CharacterName;
-
-                _context.StartBuff(
-                    pending,
-                    target,
-                    message.Timestamp);
-
+            if (LooksLikeGenericNpcSubject(target))
                 return true;
-            }
+
+            _context.Pending.Remove(pending);
+            _context.StartBuff(pending, target, message.Timestamp);
+            return true;
         }
 
         return false;
@@ -74,12 +61,9 @@ internal sealed class BuffTracker
                      s.Enabled &&
                      !string.IsNullOrWhiteSpace(s.FadePattern)))
         {
-            foreach (var pattern in PatternMatcher.Split(
-                         spell.FadePattern))
+            foreach (var pattern in PatternMatcher.Split(spell.FadePattern))
             {
-                var match = PatternMatcher.Match(
-                    pattern,
-                    message.Text);
+                var match = PatternMatcher.Match(pattern, message.Text);
 
                 if (!match.Success)
                     continue;
@@ -91,7 +75,9 @@ internal sealed class BuffTracker
                     : _context.CharacterName;
 
                 var key = EngineContext.IsHot(spell)
-                    ? EngineContext.HotKey(target)
+                    ? EngineContext.HotKey(
+                        EngineContext.HotFamily(spell.Name),
+                        target)
                     : EngineContext.BuffKey(spell.Name, target);
 
                 if (_context.Timers.Remove(key, out var ended))
@@ -106,5 +92,15 @@ internal sealed class BuffTracker
         }
 
         return false;
+    }
+
+    private static bool LooksLikeGenericNpcSubject(string target)
+    {
+        var value = target.Trim();
+
+        return
+            value.StartsWith("a ", StringComparison.OrdinalIgnoreCase) ||
+            value.StartsWith("an ", StringComparison.OrdinalIgnoreCase) ||
+            value.StartsWith("the ", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -1,0 +1,26 @@
+EQ Legends Companion v1.5.1 — Cleric stacking and no-damage handling
+
+HoT slots:
+- Nature: Druid + Shaman share one slot per target.
+- Cleric: Cleric Echo uses a separate slot per target.
+- Nature and Cleric can coexist on the same target.
+
+Cleric behavior:
+- Cast immediately starts a provisional timer:
+    Echo of Health — Unknown target
+- Self landing:
+    You are embraced by a spirit of healing.
+  assigns the timer to the local character.
+- Immediate healing:
+    You healed Cosmos for 38 (51) hit points by Echo of Health.
+  confirms or corrects the target.
+- If no damage is available, the provisional timer remains Unknown target
+  unless a self-embrace line identifies the local character.
+- The line:
+    The echo of healing fades away.
+  is ignored because it is only the short visual echo ending.
+- The configured/rank-learned duration expires the actual HoT timer.
+
+Nature behavior:
+- A Shaman HoT replaces a Druid HoT on the same target and vice versa.
+- Cleric Echo remains active beside it.

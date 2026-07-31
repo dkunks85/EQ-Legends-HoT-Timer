@@ -52,6 +52,14 @@ internal sealed class CastTracker
         _context.Say(
             $"Pending {castName} by {_context.DisplayCaster(caster)}");
 
+        if (isHot &&
+            EngineContext.IsClericHotName(
+                SpellNames.Base(castName)))
+        {
+            var pending = _context.Pending[^1];
+            _context.StartProvisionalClericHot(pending);
+        }
+
         return true;
     }
 

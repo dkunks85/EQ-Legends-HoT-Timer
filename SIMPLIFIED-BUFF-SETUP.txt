@@ -1,0 +1,25 @@
+EQ Legends Companion v1.4.3 — Simplified Buff Setup
+
+Changes:
+- Fade Pattern removed from Spell Setup.
+- Normal buffs now expire only from the manually entered M:SS timer.
+- Landing Pattern is split into:
+    Self landing
+    Target landing (name implied)
+
+Examples:
+
+Self landing:
+    You feel the spirit of wolf enter you.
+
+Target landing:
+    is surrounded by a brief lupine aura.
+
+The app internally saves the target form as:
+    {target} is surrounded by a brief lupine aura.
+
+Users do not type {target} or || anymore.
+
+HoT behavior is unchanged:
+- Automatic HoT detection remains.
+- Ranked HoT duration learning remains.
