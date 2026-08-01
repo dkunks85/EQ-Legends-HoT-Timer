@@ -1,0 +1,6 @@
+v1.5.4
+- Rejects learned HoT durations below 5 seconds or above 10 minutes.
+- Removes existing bad values such as 1 second from hot-durations.json.
+- Falls back to the configured duration when no valid learned value exists.
+
+Close the app and delete hot-durations.json once before first test.

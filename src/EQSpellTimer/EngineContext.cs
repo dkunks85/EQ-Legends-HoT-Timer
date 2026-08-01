@@ -150,6 +150,15 @@ internal sealed class EngineContext
         if (!LearnHotDurations)
             return observed;
 
+        if (observed < 5 || observed > 600)
+        {
+            Say(
+                $"Ignored invalid HoT duration for {timer.Spell}: " +
+                $"{observed}s");
+
+            return (int)Math.Round(timer.Duration);
+        }
+
         var learned = _hotDurations.Record(timer.Spell, observed);
 
         Say(
